@@ -3,19 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def kl_stdnorm_diag(mu, c_diag):
-    """Compute the KL-divergence from the standard normal to a normal with
-    mean mu and covariance c_diag.
-    mu - tensor of size [batch x dim]
-    c_diag - tensor of size [batch x dim]
-    """
-    return 0.5 * (-c_diag.log().sum(dim=1) - mu.size(1) + c_diag.sum(dim=1)
-                  + (mu * mu).sum(dim=1))
-
-
 class AutoEncoder(nn.Module):
 
-    def __init__(self, generative, approx_post, data_shape):
+    def __init__(self, generative, approx_post):
+        super().__init__()
         self.decoder = generative
         self.encoder = approx_post
 
@@ -34,8 +25,11 @@ class AutoEncoder(nn.Module):
     def loss(self, data, dist, output):
         batch_size = data.size(0)
         kl_loss = torch.mean(self.encoder.kl_loss(dist))
-        diff = (data - output).view(batch_size, -1)
-        reconst_loss = torch.mean((diff * diff).sum(axis=1))  # -LL of stdnorm
+        # print('KL-loss:', kl_loss)
+        diff = (data.unsqueeze(1) - output).view(batch_size, -1)
+        # reconst_loss = torch.mean((diff * diff).sum(dim=1))  # -LL of stdnorm
+        reconst_loss = torch.mean(diff * diff)
+        # print('Reconstruction loss:', reconst_loss)
         return kl_loss + reconst_loss
 
 
@@ -50,15 +44,14 @@ class GenerativeModel(nn.Module):
     the last transform.
     """
     def __init__(self, state_dims, transforms):
+        super().__init__()
         if len(state_dims) == 0:
             raise ValueError('Must have a nonzero number of generative parameters')
         if len(state_dims) != len(transforms):
             raise ValueError('Cannot have different numbers of generative parameters and transforms')
+        for idx, t in enumerate(transforms):
+            self.add_module('layer_{}'.format(idx), t)
         self.layers = transforms
-        # layers = []
-        # for i in range(1, len(state_dims)):
-        #     layers.append(nn.Linear(state_dims[i-1], state_dims[i]))
-        # self.output_layer = nn.Linear(state_dims[-1], output_size)
         self.state_dims = state_dims
 
     def forward(self, x):
@@ -67,13 +60,45 @@ class GenerativeModel(nn.Module):
         """
         result = torch.zeros_like(x[0])  # additive identity for ease of coding
         for layer, inp in zip(self.layers, x):
-            result = self.layer(result + x)
+            result = layer(result + inp)
         return result
 
     def sample(self, batch_size):
         """Generate a sample from this distribution's prior."""
         enc = [torch.randn(batch_size, dim) for dim in self.state_dims]
         return self.forward(enc)
+
+
+def build_mlp(input_dim, mlp_sizes):
+    layers = []
+    current_dim = input_dim
+    for size in mlp_sizes[:-1]:
+        layers.append(nn.Linear(current_dim, size))
+        layers.append(nn.ReLU())
+        current_dim = size
+    layers.append(nn.Linear(current_dim, mlp_sizes[-1]))
+    return nn.Sequential(*layers)
+
+
+def mlp_generative_model(state_dims, mlp_hidden_sizes, output_shape):
+    """Factory function for GenerativeModels with MLP transformations"""
+    transforms = []
+    for i in range(len(state_dims) - 1):
+        dims = mlp_hidden_sizes[i] + [state_dims[i+1]]
+        transforms.append(build_mlp(state_dims[i], dims))
+    dims = mlp_hidden_sizes[-1] + [output_shape]
+    transforms.append(build_mlp(state_dims[-1], dims))
+    return GenerativeModel(state_dims, transforms)
+
+
+def kl_stdnorm_diag(mu, c_diag):
+    """Compute the KL-divergence from the standard normal to a normal with
+    mean mu and covariance c_diag.
+    mu - tensor of size [batch x dim]
+    c_diag - tensor of size [batch x dim]
+    """
+    return 0.5 * (-c_diag.log().sum(dim=1) - mu.size(1) + c_diag.sum(dim=1)
+                  + (mu * mu).sum(dim=1))
 
 
 class ApproxPosterior(nn.Module):
@@ -87,29 +112,27 @@ class ApproxPosterior(nn.Module):
     """
 
     def __init__(self, input_dim, mlp_sizes, state_dims, sample_size):
-        layers = []
-        current_dim = input_dim
-        for size in mlp_sizes:
-            layers.append(nn.Linear(current_dim, size))
-            layers.append(nn.ReLU())
-            current_dim = size
-        self.representation = nn.Sequential(layers)
+        super().__init__()
+        self.representation = build_mlp(input_dim, mlp_sizes)
+        rep_dim = mlp_sizes[-1] if len(mlp_sizes) > 0 else input_dim
+        output_layers = []
+        for idx, dim in enumerate(state_dims):
+            mu_layer = nn.Linear(rep_dim, dim)
+            cov_layer = nn.Linear(rep_dim, dim)
+            self.add_module('layer_{}_mu'.format(idx), mu_layer)
+            self.add_module('layer_{}_cov'.format(idx), cov_layer)
+            output_layers.append((mu_layer, cov_layer))
+        self.output_layers = output_layers
 
         self.state_dims = state_dims
-        self.output_layers = []
-        for dim in state_dims:
-            mu_layer = nn.Linear(current_dim, dim)
-            cov_layer = nn.Linear(current_dim, dim)
-            self.output_layers.append((mu_layer, cov_layer))
-
         self.sample_size = sample_size
 
     def encode_distribution(self, x):
-        rep = self.representation(x)
+        rep = F.relu(self.representation(x))
         output = []
         for mu_layer, cov_layer in self.output_layers:
             # TODO: figure out if 0 variance blows up
-            output.append((F.relu(mu_layer(rep)), F.relu(cov_layer(rep))))
+            output.append((F.relu(mu_layer(rep)), F.softplus(cov_layer(rep))))
         return output
 
     def forward(self, x):
