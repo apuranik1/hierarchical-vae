@@ -13,10 +13,9 @@ class AutoEncoder(nn.Module):
     def forward(self, x):
         batch = x.size(0)
         dist, enc_samples = self.encoder(x)
-        sample_size = enc_samples[0].size(1)
+        sample_size = enc_samples.size(1)
         # merge samples into batch for the decoder network
-        reshaped_samples = [enc.view(batch * sample_size, *enc.size()[2:])
-                            for enc in enc_samples]
+        reshaped_samples = enc_samples.view(batch * sample_size, *enc_samples.size()[2:])
         output = self.decoder(reshaped_samples)
         # reconstitute samples within a batch
         output = output.view(batch, sample_size, *output.size()[1:])
@@ -26,6 +25,8 @@ class AutoEncoder(nn.Module):
         batch_size = data.size(0)
         kl_loss = torch.mean(self.encoder.kl_loss(dist))
         # print('KL-loss:', kl_loss)
+        # data has dimension batch x pixels
+        # output has dimension batch x samples x pixels
         diff = (data.unsqueeze(1) - output).view(batch_size, -1)
         # reconst_loss = torch.mean((diff * diff).sum(dim=1))  # -LL of stdnorm
         reconst_loss = torch.mean(diff * diff)
@@ -53,19 +54,25 @@ class GenerativeModel(nn.Module):
             self.add_module('layer_{}'.format(idx), t)
         self.layers = transforms
         self.state_dims = state_dims
+        indices = [0]
+        for dim in state_dims:
+            indices.append(indices[-1] + dim)
+        self.indices = indices
 
     def forward(self, x):
         """Apply the decoder to encoding x.
         Input should be a list, where entry i has shape [batch x state_dim[i]]
         """
-        result = torch.zeros_like(x[0])  # additive identity for ease of coding
-        for layer, inp in zip(self.layers, x):
+        result = torch.zeros(self.state_dims[0])  # additive identity for ease of coding
+        for index, layer in enumerate(self.layers):
+            inp = x[:, self.indices[index]:self.indices[index+1]]
             result = layer(result + inp)
         return result
 
     def sample(self, batch_size):
         """Generate a sample from this distribution's prior."""
-        enc = [torch.randn(batch_size, dim) for dim in self.state_dims]
+        dim = self.indices[-1]
+        enc = torch.randn(batch_size, dim)
         return self.forward(enc)
 
 
@@ -113,27 +120,19 @@ class ApproxPosterior(nn.Module):
 
     def __init__(self, input_dim, mlp_sizes, state_dims, sample_size):
         super().__init__()
+        # TODO: allow length 0 mlp_sizes in a reasonable way
         self.representation = build_mlp(input_dim, mlp_sizes)
         rep_dim = mlp_sizes[-1] if len(mlp_sizes) > 0 else input_dim
-        output_layers = []
-        for idx, dim in enumerate(state_dims):
-            mu_layer = nn.Linear(rep_dim, dim)
-            cov_layer = nn.Linear(rep_dim, dim)
-            self.add_module('layer_{}_mu'.format(idx), mu_layer)
-            self.add_module('layer_{}_cov'.format(idx), cov_layer)
-            output_layers.append((mu_layer, cov_layer))
-        self.output_layers = output_layers
-
-        self.state_dims = state_dims
+        self.state_size = sum(state_dims)
+        self.output_mu = nn.Linear(rep_dim, self.state_size)
+        self.output_cov = nn.Linear(rep_dim, self.state_size)
         self.sample_size = sample_size
 
     def encode_distribution(self, x):
         rep = F.relu(self.representation(x))
-        output = []
-        for mu_layer, cov_layer in self.output_layers:
-            # TODO: figure out if 0 variance blows up
-            output.append((F.relu(mu_layer(rep)), F.softplus(cov_layer(rep))))
-        return output
+        mu = self.output_mu(rep)
+        cov = F.softplus(self.output_cov(rep))
+        return (mu, cov)
 
     def forward(self, x):
         """Sample from the approximate posterior.
@@ -143,16 +142,11 @@ class ApproxPosterior(nn.Module):
         # Use the fact that N(m, C) = sqrt(C) * N(0, 1) + m to allow autograd
         # to backprop through the Gaussian parameters properly (I think)
         batch = x.size(0)
-        params = self.encode_distribution(x)
-        samples = []
-        for (mu, cov), dim in zip(params, self.state_dims):
-            # draw multivariate Gaussian samples:
-            # [batch x sample_size x state_dims[i]]
-            # scale by cov, add params
-            sample = torch.randn(batch, self.sample_size, dim)
-            samples.append(sample * torch.sqrt(cov.unsqueeze(1))
-                           + mu.unsqueeze(1))
-        return params, samples
+        mu, cov = self.encode_distribution(x)
+        sample = torch.randn(batch, self.sample_size, self.state_size)
+        sample = sample * torch.sqrt(cov.unsqueeze(1)) + mu.unsqueeze(1)
+        return (mu, cov), sample
 
     def kl_loss(self, dist):
-        return sum(kl_stdnorm_diag(mu, c_diag) for mu, c_diag in dist)
+        mu, cov = dist
+        return kl_stdnorm_diag(mu, cov)

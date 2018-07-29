@@ -6,7 +6,8 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
     n = dataset.size(0)
     # this will probably leave out the last couple training points...
     num_batches = n // batch_size
-    sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
+    # sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
+    sgd = torch.optim.Adam(autoencoder.parameters(), 0.01, weight_decay=decay)
     for epoch in range(epochs):
         loss_sum = 0
         for i in range(num_batches):
