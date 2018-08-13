@@ -1,3 +1,4 @@
+import math
 import torch
 
 
@@ -7,6 +8,9 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
     # this will probably leave out the last couple training points...
     num_batches = n // batch_size
     # sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
+    width = int(math.log10(num_batches) + 1)
+    width_format = '{:' + str(width) + '}'
+    batch_format = 'Batch ' + width_format + '/' + width_format + '.'
     sgd = torch.optim.Adam(autoencoder.parameters(), 0.01, weight_decay=decay)
     for epoch in range(epochs):
         loss_sum = 0
@@ -16,10 +20,11 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
                                sgd)
             loss_sum += loss
             print('\r' + ' ' * 40, end='')
-            print('\r' + 'Average loss = {}'.format(loss_sum / (i + 1)),
-                  end='')
+            print('\r' + batch_format.format(i, num_batches), end='')
+            print(' Average loss = {:2.5}'.format(loss_sum / (i + 1)),
+                  end='', flush=True)
         print()
-        print('Epoch {} complete. Average loss = {}'
+        print('Epoch {} complete. Average loss = {:2.3}'
               .format(epoch, loss_sum / num_batches))
     return autoencoder
 

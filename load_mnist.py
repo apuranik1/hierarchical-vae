@@ -21,8 +21,7 @@ def load_mnist(num_points, digits, offset=0, normalize=True):
         fullset = np.loadtxt(filename, dtype=np.float32)
         # normalize
         if normalize:
-            fullset *= 2 / 255
-            fullset -= 1
+            fullset /= 255
         X.append(torch.from_numpy(fullset[offset:offset+num_points, :]))
         Y.append(num + torch.zeros((num_points, 1), dtype=torch.int32))
         # X[num_points * i:num_points * (i+1), :] = fullset[offset:offset+num_points, :]
@@ -30,3 +29,7 @@ def load_mnist(num_points, digits, offset=0, normalize=True):
     X = torch.cat(X, dim=0)
     Y = torch.cat(Y, dim=0)
     return sync_shuffle(X, Y)
+
+
+def load_bin_mnist():
+    return torch.from_numpy(np.loadtxt('data/binarized_mnist_train.amat', dtype=np.float32))

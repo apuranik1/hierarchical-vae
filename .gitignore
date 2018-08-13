@@ -1,5 +1,7 @@
 # PyTorch data and models
 *.pt
+*.amat
+samples/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
