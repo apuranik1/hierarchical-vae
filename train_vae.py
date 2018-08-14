@@ -23,6 +23,7 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
             print('\r' + batch_format.format(i, num_batches), end='')
             print(' Average loss = {:2.5}'.format(loss_sum / (i + 1)),
                   end='', flush=True)
+            print(flush=True)
         print()
         print('Epoch {} complete. Average loss = {:2.3}'
               .format(epoch, loss_sum / num_batches))
@@ -35,4 +36,4 @@ def train_batch(autoencoder, datapoints, optimizer):
     loss = autoencoder.loss(datapoints, dist, output)
     loss.backward()
     optimizer.step()
-    return loss
+    return loss.item()
