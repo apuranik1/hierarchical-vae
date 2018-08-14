@@ -9,7 +9,7 @@ class AutoEncoder(nn.Module):
         super().__init__()
         self.decoder = generative
         self.encoder = approx_post
-        self.loss_func = nn.BCEWithLogitsLoss(reduce=True)
+        self.loss_func = nn.BCEWithLogitsLoss(reduction='sum')
 
     def forward(self, x):
         batch = x.size(0)
@@ -24,7 +24,8 @@ class AutoEncoder(nn.Module):
 
     def loss(self, data, dist, output):
         batch_size = data.size(0)
-        kl_loss = torch.mean(self.encoder.kl_loss(dist))
+        kl_loss = torch.sum(self.encoder.kl_loss(dist))
+        # print()
         # print('KL-loss:', kl_loss)
         # data has dimension batch x pixels
         # output has dimension batch x samples x pixels
@@ -34,7 +35,8 @@ class AutoEncoder(nn.Module):
         sample_size = output.size(1)
         reconst_loss = self.loss_func(output, data.unsqueeze(1).expand(-1, sample_size, -1))
         # print('Reconstruction loss:', reconst_loss)
-        return kl_loss + reconst_loss
+        # print()
+        return (kl_loss + reconst_loss) / batch_size
 
 
 class GenerativeModel(nn.Module):

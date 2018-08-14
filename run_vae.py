@@ -10,11 +10,9 @@ import train_vae
 
 # TODO: add t-convs to generative model
 def build_vae():
-    state_sizes = [100, 100, 100]
-    generative = vae.GenerativeModel(state_sizes, [vae.build_mlp(100, [100]),
-                                                   vae.build_mlp(100, [100]),
-                                                   vae.build_mlp(100, [200, 784])])
-    recog = vae.ApproxPosterior(load_mnist.pixels, [200, 300], state_sizes, 5)
+    state_sizes = [200]
+    generative = vae.GenerativeModel(state_sizes, [vae.build_mlp(200, [200, 200, 784])])
+    recog = vae.ApproxPosterior(load_mnist.pixels, [200], state_sizes, 5)
     model = vae.AutoEncoder(generative, recog)
     print('Model structure:')
     print(list(model.children()))
