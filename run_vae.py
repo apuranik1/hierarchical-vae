@@ -25,8 +25,12 @@ def dataprep(datafile):
     torch.save(data, datafile)
 
 
-def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.002, momentum=0.9, decay=0.0001):
-    model = build_vae()
+def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.002, momentum=0.9,
+          decay=0.0001, continue_training=False):
+    if continue_training:
+        model = torch.load(modelfile)
+    else:
+        model = build_vae()
     dataset = torch.load(datafile)
     train_vae.train(model, dataset, epochs, batch_size, lr, momentum, decay)
     torch.save(model, modelfile)
