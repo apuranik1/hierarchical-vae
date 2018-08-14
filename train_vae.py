@@ -2,22 +2,23 @@ import math
 import torch
 
 
-def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
-          decay=0.1):
+def train(autoencoder, dataset, epochs, batch_size, lr, momentum, decay, cuda):
     n = dataset.size(0)
+    device = torch.device('cuda') if cuda else torch.device('cpu')
     # this will probably leave out the last couple training points...
     num_batches = n // batch_size
     # sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
+    autoencoder = autoencoder.to(device=device)
+    sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
     width = int(math.log10(num_batches) + 1)
     width_format = '{:' + str(width) + '}'
     batch_format = 'Batch ' + width_format + '/' + width_format + '.'
-    sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
     for epoch in range(epochs):
         loss_sum = 0
         for i in range(num_batches):
             start = i * batch_size
-            loss = train_batch(autoencoder, dataset[start:start+batch_size],
-                               sgd)
+            data = dataset[start:start+batch_size].to(device=device)
+            loss = train_batch(autoencoder, data, sgd)
             loss_sum += loss
             print('\r' + ' ' * 40, end='')
             print('\r' + batch_format.format(i, num_batches), end='')
@@ -29,10 +30,10 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
     return autoencoder
 
 
-def train_batch(autoencoder, datapoints, optimizer):
+def train_batch(autoencoder, data, optimizer):
     optimizer.zero_grad()
-    dist, output = autoencoder(datapoints)
-    loss = autoencoder.loss(datapoints, dist, output)
+    dist, output = autoencoder(data)
+    loss = autoencoder.loss(data, dist, output)
     loss.backward()
     optimizer.step()
     return loss.item()
