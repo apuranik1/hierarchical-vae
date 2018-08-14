@@ -11,7 +11,7 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
     width = int(math.log10(num_batches) + 1)
     width_format = '{:' + str(width) + '}'
     batch_format = 'Batch ' + width_format + '/' + width_format + '.'
-    sgd = torch.optim.Adam(autoencoder.parameters(), 0.01, weight_decay=decay)
+    sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
     for epoch in range(epochs):
         loss_sum = 0
         for i in range(num_batches):
@@ -23,7 +23,6 @@ def train(autoencoder, dataset, epochs, batch_size=64, lr=0.001, momentum=0.9,
             print('\r' + batch_format.format(i, num_batches), end='')
             print(' Average loss = {:2.5}'.format(loss_sum / (i + 1)),
                   end='', flush=True)
-            print(flush=True)
         print()
         print('Epoch {} complete. Average loss = {:2.3}'
               .format(epoch, loss_sum / num_batches))
