@@ -68,7 +68,8 @@ class GenerativeModel(nn.Module):
         """Apply the decoder to encoding x.
         Input should be a list, where entry i has shape [batch x state_dim[i]]
         """
-        result = torch.zeros(self.state_dims[0])  # additive identity for ease of coding
+        dev = x.device
+        result = torch.zeros(self.state_dims[0], device=dev)  # additive identity for ease of coding
         for index, layer in enumerate(self.layers):
             inp = x[:, self.indices[index]:self.indices[index+1]]
             result = layer(result + inp)
@@ -148,8 +149,10 @@ class ApproxPosterior(nn.Module):
         # Use the fact that N(m, C) = sqrt(C) * N(0, 1) + m to allow autograd
         # to backprop through the Gaussian parameters properly (I think)
         batch = x.size(0)
+        dev = x.device
         mu, cov = self.encode_distribution(x)
-        sample = torch.randn(batch, self.sample_size, self.state_size)
+        sample = torch.randn(batch, self.sample_size, self.state_size,
+                             device=dev)
         sample = sample * torch.sqrt(cov.unsqueeze(1)) + mu.unsqueeze(1)
         return (mu, cov), sample
 
