@@ -39,7 +39,7 @@ def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.002, momentum=0.9,
 
 
 def sample(modelfile, count=5, name='samples/sample'):
-    model = torch.load(modelfile)
+    model = torch.load(modelfile).cpu()
     print(model.decoder.__dict__)
     imgs = model.decoder.sample(count).detach()
     print(imgs)
