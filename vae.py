@@ -80,7 +80,7 @@ class GenerativeModel(nn.Module):
         dim = self.indices[-1]
         enc = torch.randn(batch_size, dim)
         params = self.forward(enc)
-        return F.sigmoid(params)
+        return torch.sigmoid(params)
 
 
 def build_mlp(input_dim, mlp_sizes):
