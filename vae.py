@@ -125,9 +125,10 @@ class ApproxPosterior(nn.Module):
     different outputs corresponding to the parameters of the decoder.
     """
 
-    def __init__(self, input_dim, mlp_sizes, state_dims, sample_size):
+    def __init__(self, input_dim, mlp_sizes, state_dims, sample_size, dropout=0.2):
         super().__init__()
         # TODO: allow length 0 mlp_sizes in a reasonable way
+        self.dropout = nn.Dropout(dropout)
         self.representation = build_mlp(input_dim, mlp_sizes)
         rep_dim = mlp_sizes[-1] if len(mlp_sizes) > 0 else input_dim
         self.state_size = sum(state_dims)
@@ -136,7 +137,7 @@ class ApproxPosterior(nn.Module):
         self.sample_size = sample_size
 
     def encode_distribution(self, x):
-        rep = F.relu(self.representation(x))
+        rep = F.relu(self.representation(self.dropout(x)))
         mu = self.output_mu(rep)
         cov = F.softplus(self.output_cov(rep))
         return (mu, cov)
