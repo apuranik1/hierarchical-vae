@@ -12,7 +12,7 @@ import train_vae
 def build_vae():
     state_sizes = [200]
     generative = vae.GenerativeModel(state_sizes, [vae.build_mlp(200, [200, 200, 784])])
-    recog = vae.ApproxPosterior(load_mnist.pixels, [200], state_sizes, 5)
+    recog = vae.ApproxPosterior(load_mnist.pixels, [200], state_sizes, 3)
     model = vae.AutoEncoder(generative, recog)
     print('Model structure:')
     print(list(model.children()))
