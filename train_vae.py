@@ -8,8 +8,8 @@ def train(autoencoder, dataset, epochs, batch_size, lr, momentum, decay, cuda):
     # this will probably leave out the last couple training points...
     num_batches = n // batch_size
     autoencoder = autoencoder.to(device=device)
-    sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
-    # sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
+    # sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum, weight_decay=decay)
+    sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
     width = int(math.log10(num_batches) + 1)
     width_format = '{:' + str(width) + '}'
     batch_format = 'Batch ' + width_format + '/' + width_format + '.'
