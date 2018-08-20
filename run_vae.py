@@ -33,6 +33,7 @@ def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.000002, momentum=0
     else:
         print('Training new model')
         model = build_vae()
+    model.train()
     dataset = torch.load(datafile)
     train_vae.train(model, dataset, epochs, batch_size, lr, momentum, decay, cuda)
     torch.save(model, modelfile)
@@ -40,12 +41,16 @@ def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.000002, momentum=0
 
 def sample(modelfile, count=5, name='samples/sample'):
     model = torch.load(modelfile).cpu()
+    model.eval()
     print(model.decoder.layers)
     imgs = model.decoder.sample(count).detach()
     print(imgs)
     for idx in range(count):
-        img = imgs[idx, :].numpy().reshape(28, 28) * 255
-        img = np.rint(np.clip(img, 0, 255)).astype('uint8')
+        probs = imgs[idx, :].numpy().reshape(28, 28)
+        sample = np.random.uniform(size=probs.shape)
+        # img = imgs[idx, :].numpy().reshape(28, 28) * 255
+        img = np.where(sample < probs, 255, 0).astype('uint8')
+        # img = np.rint(np.clip(img, 0, 255)).astype('uint8')
         fname = name + '-{}.png'.format(idx)
         image = Image.fromarray(img, mode='L')
         image.save(fname)
