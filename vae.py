@@ -25,15 +25,17 @@ class AutoEncoder(nn.Module):
     def loss(self, data, dist, output):
         batch_size = data.size(0)
         kl_loss = torch.sum(self.encoder.kl_loss(dist))
-        # print()
-        # print('KL-loss:', kl_loss)
+
         # data has dimension batch x pixels
         # output has dimension batch x samples x pixels
+
         # diff = (data.unsqueeze(1) - output).view(batch_size, -1)
         # reconst_loss = torch.mean((diff * diff).sum(dim=1))  # -LL of stdnorm
         # reconst_loss = torch.mean(diff * diff)
         sample_size = output.size(1)
-        reconst_loss = self.loss_func(output, data.unsqueeze(1).expand(-1, sample_size, -1))
+        truth = data.unsqueeze(1).expand(-1, sample_size, -1)
+        # approximate E_q[p(x|z)]
+        reconst_loss = self.loss_func(output, truth) / sample_size
         # print('Reconstruction loss:', reconst_loss)
         # print()
         return (kl_loss + reconst_loss) / batch_size
