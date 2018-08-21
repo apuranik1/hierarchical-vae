@@ -77,6 +77,7 @@ class GenerativeModel(nn.Module):
 
     def sample(self, batch_size):
         """Generate a sample from this distribution's prior."""
+        # TODO: make this work on GPU as well
         dim = self.indices[-1]
         enc = torch.randn(batch_size, dim)
         params = self.forward(enc)

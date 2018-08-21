@@ -3,6 +3,7 @@ import torch
 
 
 def train(autoencoder, dataset, epochs, batch_size, lr, momentum, decay, cuda):
+    # TODO: compute validation log-likelihood via importance sampling
     n = dataset.size(0)
     device = torch.device('cuda') if cuda else torch.device('cpu')
     # this will probably leave out the last couple training points...
@@ -39,3 +40,25 @@ def train_batch(autoencoder, data, optimizer):
     loss.backward()
     optimizer.step()
     return loss.item()
+
+
+def evaluate_elbo(autoencoder, dataset, batch_size, cuda):
+    n = dataset.size(0)
+    device = torch.device('cuda') if cuda else torch.device('cpu')
+    num_batches = n // batch_size
+    autoencoder = autoencoder.to(device=device)
+    loss_sum = 0
+    for idx in range(num_batches):
+        start = idx * batch_size
+        data = dataset[start:start+batch_size].to(device=device)
+        dist, output = autoencoder(data)
+        loss = autoencoder.loss(data, dist, output).item()
+        loss_sum += loss
+    avg_loss = loss_sum / num_batches
+    return avg_loss
+
+
+def evaluate_ll(autoencoder, dataset, batch_size, cuda):
+    """Use importance sampling to estimate the average marginal log-likelihood
+    of the dataset."""
+    pass

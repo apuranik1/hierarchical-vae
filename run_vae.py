@@ -48,12 +48,22 @@ def sample(modelfile, count=5, name='samples/sample'):
     for idx in range(count):
         probs = imgs[idx, :].numpy().reshape(28, 28)
         sample = np.random.uniform(size=probs.shape)
-        # img = imgs[idx, :].numpy().reshape(28, 28) * 255
         img = np.where(sample < probs, 255, 0).astype('uint8')
+        # img = imgs[idx, :].numpy().reshape(28, 28) * 255
         # img = np.rint(np.clip(img, 0, 255)).astype('uint8')
         fname = name + '-{}.png'.format(idx)
         image = Image.fromarray(img, mode='L')
         image.save(fname)
+
+
+def elbo(modelfile, datafile, batch_size=512, cuda=False):
+    model = torch.load(modelfile)
+    data = torch.load(datafile)
+    train_vae.evaluate_elbo(model, data, batch_size, cuda)
+
+
+def evaluate(modelfile, datafile, samples=10):
+    model = torch.load(modelfile)
 
 
 if __name__ == '__main__':
