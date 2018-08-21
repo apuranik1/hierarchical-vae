@@ -16,7 +16,8 @@ class AutoEncoder(nn.Module):
         dist, enc_samples = self.encoder(x)
         sample_size = enc_samples.size(1)
         # merge samples into batch for the decoder network
-        reshaped_samples = enc_samples.view(batch * sample_size, *enc_samples.size()[2:])
+        reshaped_samples = enc_samples.view(batch * sample_size,
+                                            *enc_samples.size()[2:])
         output = self.decoder(reshaped_samples)
         # reconstitute samples within a batch
         output = output.view(batch, sample_size, *output.size()[1:])
@@ -71,7 +72,8 @@ class GenerativeModel(nn.Module):
         Input should be a list, where entry i has shape [batch x state_dim[i]]
         """
         dev = x.device
-        result = torch.zeros(self.state_dims[0], device=dev)  # additive identity for ease of coding
+        # additive identity for ease of coding
+        result = torch.zeros(self.state_dims[0], device=dev)
         for index, layer in enumerate(self.layers):
             inp = x[:, self.indices[index]:self.indices[index+1]]
             result = layer(result + inp)
@@ -128,7 +130,8 @@ class ApproxPosterior(nn.Module):
     different outputs corresponding to the parameters of the decoder.
     """
 
-    def __init__(self, input_dim, mlp_sizes, state_dims, sample_size, dropout=0.2):
+    def __init__(self, input_dim, mlp_sizes, state_dims, sample_size,
+                 dropout=0.2):
         super().__init__()
         # TODO: allow length 0 mlp_sizes in a reasonable way
         self.dropout = nn.Dropout(dropout)

@@ -2,6 +2,10 @@ import numpy as np
 import torch
 
 
+BIN_MNIST_TRAIN = 'data/binarized_mnist_train.amat'
+BIN_MNIST_VAL = 'data/binarized_mnist_val.amat'
+BIN_MNIST_TEST = 'data/binarized_mnist_test.amat'
+
 pixels = 784
 
 
@@ -31,5 +35,5 @@ def load_mnist(num_points, digits, offset=0, normalize=True):
     return sync_shuffle(X, Y)
 
 
-def load_bin_mnist():
-    return torch.from_numpy(np.loadtxt('data/binarized_mnist_train.amat', dtype=np.float32))
+def load_bin_mnist(fname):
+    return torch.from_numpy(np.loadtxt(fname, dtype=np.float32))
