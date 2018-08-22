@@ -39,9 +39,10 @@ def train(autoencoder, train_data, val_data, epochs, batch_size, lr, momentum,
             print(' Average loss = {:2.4}'.format(loss_sum / (i + 1)),
                   end='', flush=True)
         print()
-        val_loss = evaluate_ll(autoencoder, val_data, batch_size, cuda)
-        print('Epoch {} complete. Training loss = {:2.3}. Validation LL = {:2.3}'
-              .format(epoch, loss_sum / num_batches, val_loss))
+        val_loss = evaluate_elbo(autoencoder, val_data, batch_size, cuda)
+        val_ll = evaluate_ll(autoencoder, val_data, batch_size, cuda)
+        print('Epoch {} complete. Training loss = {:2.3}. Validation loss = {:2.3}. Validation LL = {:2.3}'
+              .format(epoch, loss_sum / num_batches, val_loss, val_ll))
     return autoencoder
 
 
@@ -95,20 +96,22 @@ def evaluate_ll(autoencoder, dataset, batch_size, cuda):
         sample_size = enc_samples.size(1)
         # compute prior LL of enc_samples
         prior_dim = autoencoder.decoder.indices[-1]
-        ll_prior = -0.5 * (enc_samples * enc_samples).sum(dim=2) \
-            - prior_dim / 2 * math.log(2 * math.pi)
-        ll_posterior = -0.5 * ((enc_samples - mu) ** 2 / cov).sum(dim=2) \
-            - prior_dim / 2 * math.log(2 * math.pi) \
-            - 0.5 * torch.log(cov).sum(dim=2)
+
+        def gaussian_ll(data, mu, cov):
+            dimension = data.size(2)
+            return (-0.5 * (data - mu) ** 2 / cov).sum(dim=2) \
+                - dimension / 2 * math.log(2 * math.pi) \
+                - 0.5 * torch.log(cov).sum(dim=2)
+        ll_prior = gaussian_ll(enc_samples, torch.zeros_like(mu),
+                               torch.ones_like(cov))
+        ll_posterior = gaussian_ll(enc_samples, mu, cov)
 
         reshaped_samples = enc_samples.view(batch_size * sample_size,
                                             *enc_samples.size()[2:])
         output = autoencoder.decoder(reshaped_samples)
         output = output.reshape(batch_size, sample_size, *output.size()[1:])
         truth = data.unsqueeze(1).expand(-1, sample_size, -1)
-
-        ll_cond = -nll_cond_func(output, truth)  # shape batch x samples x 784
-        ll_cond = ll_cond.sum(dim=2)
+        ll_cond = -nll_cond_func(output, truth).sum(dim=2)  # [batch x samples]
         avg_ll = mean_logspace(ll_cond - ll_posterior + ll_prior, dim=1)
         ll_sum += avg_ll.mean().item()
     return ll_sum / num_batches
