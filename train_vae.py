@@ -12,26 +12,26 @@ def mean_logspace(x, *args, **kwargs):
     return torch.log(stable_mean) + max_val
 
 
-def train(autoencoder, dataset, epochs, batch_size, lr, momentum, decay, cuda):
-    # TODO: compute validation log-likelihood via importance sampling
-    n = dataset.size(0)
+def train(autoencoder, train_data, val_data, epochs, batch_size, lr, momentum,
+          decay, cuda):
+    n = train_data.size(0)
     device = torch.device('cuda') if cuda else torch.device('cpu')
     # this will probably leave out the last couple training points...
     num_batches = n // batch_size
     autoencoder = autoencoder.to(device=device)
-    # sgd = torch.optim.SGD(autoencoder.parameters(), lr, momentum=momentum,
-    #                       weight_decay=decay)
+    # vanilla SGD + momentum takes annoyingly long to converge
     sgd = torch.optim.Adam(autoencoder.parameters(), lr, weight_decay=decay)
     width = int(math.log10(num_batches) + 1)
     width_format = '{:' + str(width) + '}'
     batch_format = 'Batch ' + width_format + '/' + width_format + '.'
     for epoch in range(epochs):
+        autoencoder.train()
         loss_sum = 0
         indices = torch.randperm(num_batches)
         for i in range(num_batches):
             idx = indices[i].item()
             start = idx * batch_size
-            data = dataset[start:start+batch_size].to(device=device)
+            data = train_data[start:start+batch_size].to(device=device)
             loss = train_batch(autoencoder, data, sgd)
             loss_sum += loss
             print('\r' + ' ' * 40, end='')
@@ -39,8 +39,9 @@ def train(autoencoder, dataset, epochs, batch_size, lr, momentum, decay, cuda):
             print(' Average loss = {:2.4}'.format(loss_sum / (i + 1)),
                   end='', flush=True)
         print()
-        print('Epoch {} complete. Average loss = {:2.3}'
-              .format(epoch, loss_sum / num_batches))
+        val_loss = evaluate_ll(autoencoder, val_data, batch_size, cuda)
+        print('Epoch {} complete. Training loss = {:2.3}. Validation LL = {:2.3}'
+              .format(epoch, loss_sum / num_batches, val_loss))
     return autoencoder
 
 

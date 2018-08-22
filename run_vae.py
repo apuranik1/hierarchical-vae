@@ -32,7 +32,7 @@ def dataprep(datafile, train=False, val=False, test=False):
     torch.save(data, datafile)
 
 
-def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.000002,
+def train(modelfile, trainfile, valfile, epochs=1, batch_size=512, lr=0.0003,
           momentum=0.9, decay=0.00002, load=False, cuda=False):
     if load:
         print('Loading existing model')
@@ -41,8 +41,10 @@ def train(modelfile, datafile, epochs=1, batch_size=512, lr=0.000002,
         print('Training new model')
         model = build_vae()
     model.train()
-    dataset = torch.load(datafile)
-    train_vae.train(model, dataset, epochs, batch_size, lr, momentum, decay, cuda)
+    dataset = torch.load(trainfile)
+    val = torch.load(valfile)
+    train_vae.train(model, dataset, val, epochs, batch_size, lr, momentum,
+                    decay, cuda)
     torch.save(model, modelfile)
 
 

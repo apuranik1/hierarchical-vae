@@ -29,16 +29,10 @@ class AutoEncoder(nn.Module):
 
         # data has dimension batch x pixels
         # output has dimension batch x samples x pixels
-
-        # diff = (data.unsqueeze(1) - output).view(batch_size, -1)
-        # reconst_loss = torch.mean((diff * diff).sum(dim=1))  # -LL of stdnorm
-        # reconst_loss = torch.mean(diff * diff)
         sample_size = output.size(1)
         truth = data.unsqueeze(1).expand(-1, sample_size, -1)
         # approximate E_q[p(x|z)]
         reconst_loss = self.loss_func(output, truth) / sample_size
-        # print('Reconstruction loss:', reconst_loss)
-        # print()
         return (kl_loss + reconst_loss) / batch_size
 
 
@@ -154,7 +148,7 @@ class ApproxPosterior(nn.Module):
         [batch x samples x state_dims[i]
         """
         # Use the fact that N(m, C) = sqrt(C) * N(0, 1) + m to allow autograd
-        # to backprop through the Gaussian parameters properly (I think)
+        # to backprop through the Gaussian parameters properly
         batch = x.size(0)
         dev = x.device
         mu, cov = self.encode_distribution(x)
