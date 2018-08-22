@@ -3,7 +3,7 @@ import torch
 
 
 BIN_MNIST_TRAIN = 'data/binarized_mnist_train.amat'
-BIN_MNIST_VAL = 'data/binarized_mnist_val.amat'
+BIN_MNIST_VAL = 'data/binarized_mnist_valid.amat'
 BIN_MNIST_TEST = 'data/binarized_mnist_test.amat'
 
 pixels = 784
